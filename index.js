@@ -6,15 +6,20 @@
 import * as THREE from './three.js';
 import { OBJLoader } from './OBJLoader.js';
 import { MTLLoader } from './MTLLoader.js';
+import { CameraControls } from './controls.js';
 
 let renderer, scene, camera;
 let car = null;
 let ground = null;
 let carSpeed = 0.005;
 
+// templatei za kloniranje - dodaj nove objekte kot template in v otherObjects ko jih izrisuješ
 let carTemplate = null;
 let parkingTemplate = null;
+let wallTemplate = null;
+let humanTemplate = null;
 
+let otherObjects = [];
 let parkingSpaces = [];
 let parkedCars = [];
 
@@ -35,6 +40,10 @@ function init() {
     camera.position.set(-30, 20, 40);
     camera.lookAt(0, 0, 0);
 
+    const controls = new CameraControls(camera, renderer.domElement, {
+        target: new THREE.Vector3(0, 0, 0)
+    });
+
     scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
     // LUČ
@@ -54,7 +63,7 @@ function init() {
     scene.add(ground);
 
     // pred-naložimo avto
-    preloadModel("rac_grafika_model_armatura2.mtl", "rac_grafika_model_armatura2.obj", (obj) => {
+    preloadModel("objects-models/rac_grafika_model_armatura2.mtl", "objects-models/rac_grafika_model_armatura2.obj", (obj) => {
         carTemplate = obj;
         carTemplate.rotation.y += Math.PI / 2;
 
@@ -66,9 +75,17 @@ function init() {
 
     // pred-naložimo parkirno mesto
     // TODO rabimo dodati invalidska
-    preloadModel("x.mtl", "parkirna_mesta.obj", (obj) => {
+    preloadModel("objects-models/x.mtl", "objects-models/parkirna_mesta.obj", (obj) => {
         parkingTemplate = obj;
         parkingTemplate.rotation.y -= Math.PI / 2;
+    });
+
+    // pred-naložimo stebre in ostale objekte
+    preloadModel("objects-models/human.mtl", "objects-models/human.obj", (obj) => {
+        humanTemplate = obj;
+    });
+    preloadModel("objects-models/x.mtl", "objects-models/steber.obj", (obj) => {
+        wallTemplate = obj;
     });
 
     window.addEventListener('resize', onWindowResize);
@@ -151,7 +168,11 @@ function clearSpawnedObjects() {
 
     parkingSpaces.forEach(obj => removeObject(obj));
     parkingSpaces.length = 0;
+
+    otherObjects.forEach(obj => removeObject(obj));
+    otherObjects.length = 0;
 }
+
 
 // websocke povezav
 const ws = new WebSocket("ws://localhost:8000/ws");
@@ -166,28 +187,46 @@ ws.onmessage = (msg) => {
 
     // TODO filtriramo avtomobile v ozadju in ostale detekcije -> mogoče kr na bcakendu
     detections.forEach(det => {
+        const zPos = THREE.MathUtils.lerp(-20, 20, det.left_to_right / 100);
+        let xPos = THREE.MathUtils.lerp(10, 30, det.down_to_up / 100);
 
         if (det.label === "Avtomobil" && carTemplate) {
-            const leftToRight = det.left_to_right;  // 0 do 100
-
-            // TODO najdemo prave koordinate / vrednosti
-            // interpoliramo
-            const zPos = THREE.MathUtils.lerp(-20, 20, leftToRight / 100);
+            // malo površno ampak zaenkrat ok
+            if (xPos > 22) {
+                xPos = 30;
+            }
 
             const newCar = cloneObject(carTemplate);
 
             newCar.rotation.y -= Math.PI / 2;
-            newCar.position.set(10, 0, zPos);
+            newCar.position.set(xPos, 0, zPos);
             parkedCars.push(newCar);
         }
 
+        if (det.label.toLowerCase().includes("steber") && wallTemplate) {
+            // če je sredina objekt v zgornji četrtini potem je v odzadju drugače spredaj
+            if (xPos > 25) {
+                xPos = 30;
+            } else {
+                xPos = 10;
+            }
+            const newWall = cloneObject(wallTemplate);
+
+            newWall.position.set(xPos, 0, zPos);
+            otherObjects.push(newWall);
+        }
+
+        if (det.label.toLowerCase().includes("lovek") && humanTemplate) {
+            const newHuman = cloneObject(humanTemplate);
+
+            newHuman.position.set(xPos, 0, zPos);
+            otherObjects.push(newHuman);
+        }
+
         // TODO bolj precizno + različni parkingi
-        if (det.label.includes("parki") && parkingTemplate) {
-            const leftToRight = det.left_to_right;  // 0 do 100
-
-            const zPos = THREE.MathUtils.lerp(-20, 20, leftToRight / 100);
-
+        if (det.label.toLowerCase().includes("parki") && parkingTemplate) {
             const newParking = cloneObject(parkingTemplate);
+
             newParking.position.set(10, 0, zPos);
             parkingSpaces.push(newParking);
         }
@@ -200,6 +239,7 @@ function animate() {
     if (car) {
         parkingSpaces.forEach(space => space.position.z += carSpeed);
         parkedCars.forEach(c => c.position.z += carSpeed);
+        otherObjects.forEach(obj => obj.position.z += carSpeed);
     }
 
     renderer.render(scene, camera);
