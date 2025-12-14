@@ -29,13 +29,11 @@ export class CameraControls {
         this.onMouseMove = this.onMouseMove.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onWheelScroll = this.onWheelScroll.bind(this);
-        this.onContextMenu = this.onContextMenu.bind(this);
 
         this.domElement.addEventListener('mousedown', this.onMouseDown);
         window.addEventListener('mousemove', this.onMouseMove);
         window.addEventListener('mouseup', this.onMouseUp);
         this.domElement.addEventListener('wheel', this.onWheelScroll, {passive: false});
-        this.domElement.addEventListener('contextmenu', this.onContextMenu);
     }
 
     dispose() {
@@ -43,7 +41,6 @@ export class CameraControls {
         window.removeEventListener('mousemove', this.onMouseMove);
         window.removeEventListener('mouseup', this.onMouseUp);
         this.domElement.removeEventListener('wheel', this.onWheelScroll);
-        this.domElement.removeEventListener('contextmenu', this.onContextMenu);
     }
 
     updateSphericalFromCamera() {
@@ -123,9 +120,6 @@ export class CameraControls {
         this.updateCameraFromSpherical();
     }
 
-    onContextMenu(event) {
-        event.preventDefault();
-    }
 
     handleRotate(dx, dy) {
         const rotateSpeed = this.rotateSpeed;
