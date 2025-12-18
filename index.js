@@ -4,9 +4,9 @@
  * */
 
 import * as THREE from './three.js';
+import { OrbitControls } from './OrbitControls.js';
 import { OBJLoader } from './OBJLoader.js';
 import { MTLLoader } from './MTLLoader.js';
-import { CameraControls } from './controls.js';
 
 let renderer, scene, camera;
 let car = null;
@@ -28,28 +28,39 @@ animate();
 
 function init() {
     renderer = new THREE.WebGLRenderer();
+
+    // shadows enable
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    // set size and add to document
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    // scena
     scene = new THREE.Scene();
 
     // POGLED KAMERE
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(
+        75, // FOV
+        window.innerWidth / window.innerHeight, // aspect
+        0.1, // blizu
+        1000 // daleč
+    );
     camera.position.set(-30, 20, 40);
     camera.lookAt(0, 0, 0);
 
-    const controls = new CameraControls(camera, renderer.domElement, {
-        target: new THREE.Vector3(0, 0, 0)
-    });
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+    controls.update();
 
     // LUČ
+    // ambientna
+    scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+    // direkcijska
     const light = new THREE.DirectionalLight(0xffffff, 0.5);
     light.castShadow = true;
-    light.position.set(0, 100, 0);
+    light.position.set(-100, 100, 0);
     scene.add(light);
 
     // TLA
@@ -204,11 +215,13 @@ ws.onmessage = (msg) => {
         }
 
         if (det.label.toLowerCase().includes("steber") && wallTemplate) {
+            let xPos = THREE.MathUtils.lerp(10, 30, det.coordinates / 100);
+
             // če je sredina objekt v zgornji četrtini potem je v odzadju drugače spredaj
             if (xPos > 25) {
-                xPos = 30;
-            } else {
                 xPos = 10;
+            } else {
+                xPos = 30;
             }
             const newWall = cloneObject(wallTemplate);
 

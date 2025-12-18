@@ -90,14 +90,15 @@ def video_loop():
         result = model(frame)[0]
 
         # tole odkomentiraj za real time prikaz
-        #annotated = result.plot()
-        #preview = cv2.resize(annotated, (600, 400), interpolation=cv2.INTER_AREA)
-        #cv2.imshow("Processing Preview (600x400)", preview)
-        #if cv2.waitKey(1) & 0xFF == ord("q"):
-        #    break
+        annotated = result.plot()
+        preview = cv2.resize(annotated, (600, 400), interpolation=cv2.INTER_AREA)
+        cv2.imshow("Processing Preview (600x400)", preview)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
 
         h, w = frame.shape[:2]
 
+        ## projection matrix picking
         detections = []
         for box in result.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
@@ -147,7 +148,7 @@ def video_loop():
         cap.set(cv2.CAP_PROP_POS_FRAMES, current + SKIP)
 
         # okoli 1 na sekund
-        time.sleep(1)
+        time.sleep(0.2)
 
 # v odzadju procesiramo
 threading.Thread(target=video_loop, daemon=True).start()
